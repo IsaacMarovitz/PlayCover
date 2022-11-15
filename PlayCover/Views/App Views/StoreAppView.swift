@@ -18,20 +18,29 @@ struct StoreAppView: View {
     @EnvironmentObject var downloadVM: DownloadVM
 
     var body: some View {
-        StoreAppConditionalView(selectedBackgroundColor: $selectedBackgroundColor,
-                                selectedTextColor: $selectedTextColor,
-                                selected: $selected,
-                                app: app,
-                                isList: isList)
-        /*.gesture(TapGesture(count: 2).onEnded
-            if let url = URL(string: app.link) {
-                downloadApp(url, app)
-            }
-        })
-        .simultaneousGesture(TapGesture().onEnded {
-            selected = app
-        })*/
-        .environmentObject(downloadVM)
+        if #available(macOS 13.0, *) {
+            StoreAppConditionalView(selectedBackgroundColor: $selectedBackgroundColor,
+                                    selectedTextColor: $selectedTextColor,
+                                    selected: $selected,
+                                    app: app,
+                                    isList: isList)
+            .environmentObject(downloadVM)
+        } else {
+            StoreAppConditionalView(selectedBackgroundColor: $selectedBackgroundColor,
+                                    selectedTextColor: $selectedTextColor,
+                                    selected: $selected,
+                                    app: app,
+                                    isList: isList)
+            .gesture(TapGesture(count: 2).onEnded {
+                if let url = URL(string: app.link) {
+                    downloadApp(url, app)
+                }
+            })
+            .simultaneousGesture(TapGesture().onEnded {
+                selected = app
+            })
+            .environmentObject(downloadVM)
+        }
     }
 
     func downloadApp(_ url: URL, _ app: StoreAppData) {
