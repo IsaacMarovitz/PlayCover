@@ -6,66 +6,30 @@
 //
 import SwiftUI
 
-struct StoreAppView: View {
-    @Binding var selectedBackgroundColor: Color
-    @Binding var selectedTextColor: Color
-    @Binding var selected: StoreAppData?
+func downloadApp(_ url: URL,_ app: StoreAppData, _ downloadVM: DownloadVM) {
 
-    @State var app: StoreAppData
-    @State var isList: Bool
     @State var observation: NSKeyValueObservation?
 
-    @EnvironmentObject var downloadVM: DownloadVM
+    if !downloadVM.downloading && !InstallVM.shared.installing {
+        lazy var urlSession = URLSession(configuration: .default, delegate: nil, delegateQueue: nil)
+        let downloadTask = urlSession.downloadTask(with: url, completionHandler: { url, urlResponse, error in
+            observation?.invalidate()
+            downloadComplete(url, urlResponse, error)
+        })
 
-    var body: some View {
-        if #available(macOS 13.0, *) {
-            StoreAppConditionalView(selectedBackgroundColor: $selectedBackgroundColor,
-                                    selectedTextColor: $selectedTextColor,
-                                    selected: $selected,
-                                    app: app,
-                                    isList: isList)
-            .environmentObject(downloadVM)
-        } else {
-            StoreAppConditionalView(selectedBackgroundColor: $selectedBackgroundColor,
-                                    selectedTextColor: $selectedTextColor,
-                                    selected: $selected,
-                                    app: app,
-                                    isList: isList)
-            .gesture(TapGesture(count: 2).onEnded {
-                if let url = URL(string: app.link) {
-                    downloadApp(url, app)
-                }
-            })
-            .simultaneousGesture(TapGesture().onEnded {
-                selected = app
-            })
-            .environmentObject(downloadVM)
-        }
-    }
-
-    func downloadApp(_ url: URL, _ app: StoreAppData) {
-        if !downloadVM.downloading && !InstallVM.shared.installing {
-            lazy var urlSession = URLSession(configuration: .default, delegate: nil, delegateQueue: nil)
-            let downloadTask = urlSession.downloadTask(with: url, completionHandler: { url, urlResponse, error in
-                observation?.invalidate()
-                downloadComplete(url, urlResponse, error)
-            })
-
-            observation = downloadTask.progress.observe(\.fractionCompleted) { progress, _ in
-                DispatchQueue.main.async {
-                    downloadVM.progress = progress.fractionCompleted
-                }
+        observation = downloadTask.progress.observe(\.fractionCompleted) { progress, _ in
+            DispatchQueue.main.async {
+                downloadVM.progress = progress.fractionCompleted
             }
-
-            downloadTask.resume()
-            downloadVM.downloading = true
-            downloadVM.progress = 0
-            downloadVM.storeAppData = app
-        } else {
-            Log.shared.error(PlayCoverError.waitDownload)
         }
-    }
 
+        downloadTask.resume()
+        downloadVM.downloading = true
+        downloadVM.progress = 0
+        downloadVM.storeAppData = app
+    } else {
+        Log.shared.error(PlayCoverError.waitDownload)
+    }
     func downloadComplete(_ url: URL?, _ urlResponce: URLResponse?, _ error: Error?) {
         if error != nil {
             Log.shared.error(error!)
@@ -101,6 +65,44 @@ struct StoreAppView: View {
         downloadVM.downloading = false
         downloadVM.progress = 0
         downloadVM.storeAppData = nil
+    }
+}
+
+struct StoreAppView: View {
+    @Binding var selectedBackgroundColor: Color
+    @Binding var selectedTextColor: Color
+    @Binding var selected: StoreAppData?
+
+    @State var app: StoreAppData
+    @State var isList: Bool
+    @State var observation: NSKeyValueObservation?
+
+    @EnvironmentObject var downloadVM: DownloadVM
+
+    var body: some View {
+        if #available(macOS 13.0, *) {
+            StoreAppConditionalView(selectedBackgroundColor: $selectedBackgroundColor,
+                                    selectedTextColor: $selectedTextColor,
+                                    selected: $selected,
+                                    app: app,
+                                    isList: isList)
+            .environmentObject(downloadVM)
+        } else {
+            StoreAppConditionalView(selectedBackgroundColor: $selectedBackgroundColor,
+                                    selectedTextColor: $selectedTextColor,
+                                    selected: $selected,
+                                    app: app,
+                                    isList: isList)
+            .gesture(TapGesture(count: 2).onEnded {
+                if let url = URL(string: app.link) {
+                    downloadApp(url, app, downloadVM)
+                }
+            })
+            .simultaneousGesture(TapGesture().onEnded {
+                selected = app
+            })
+            .environmentObject(downloadVM)
+        }
     }
 }
 
@@ -204,11 +206,14 @@ struct StoreAppConditionalView: View {
 }
 
 struct DetailStoreAppView: View {
+
     @State var app: StoreAppData
     @State var iconURL: URL?
     @State var bannerImageURLs: [URL?] = []
     @State var itunesResponce: ITunesResponse?
     @State var truncated = true
+
+    @StateObject var downloadVM: DownloadVM
 
     var body: some View {
         ScrollView {
@@ -222,10 +227,10 @@ struct DetailStoreAppView: View {
                         ProgressView()
                             .progressViewStyle(.circular)
                     }
-                        .frame(width: 50, height: 50)
-                        .cornerRadius(12)
-                        .shadow(radius: 5)
-                        .padding(10)
+                    .frame(width: 50, height: 50)
+                    .cornerRadius(12)
+                    .shadow(radius: 5)
+                    .padding(10)
                     VStack {
                         HStack {
                             Text(app.name)
@@ -235,13 +240,15 @@ struct DetailStoreAppView: View {
                         HStack {
                             Text(itunesResponce?.results[0].genres[0]
                                 .components(separatedBy: CharacterSet.newlines).first ?? "")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
                             Spacer()
                         }
                     }
                     Button {
-
+                        if let url = URL(string: app.link) {
+                            downloadApp(url, app, downloadVM)
+                        }
                     } label: {
                         Image(systemName: "arrow.down.circle.fill")
                             .resizable()
@@ -312,7 +319,7 @@ struct DetailStoreAppView: View {
                         bannerImageURLs.append(URL(string: string))
                     }
                 }
-        }
+            }
         }
     }
 }
@@ -385,6 +392,7 @@ struct DetailStoreAppView_Preview: PreviewProvider {
                                              itunesLookup:
                                                 "http://itunes.apple.com/lookup?bundleId=com.miHoYo.GenshinImpact",
                                              link:
-                                                "https://repo.amrsm.ir/ipa/Genshin-Impact_3.2.0.ipa"))
+                                                "https://repo.amrsm.ir/ipa/Genshin-Impact_3.2.0.ipa"),
+                           downloadVM: DownloadVM.shared)
     }
 }
