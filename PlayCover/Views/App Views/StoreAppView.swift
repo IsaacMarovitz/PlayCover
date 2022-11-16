@@ -10,7 +10,7 @@ func downloadApp(_ url: URL,
                  _ app: StoreAppData,
                  _ downloadVM: DownloadVM) {
 
-    @State var observation: NSKeyValueObservation?
+    var observation: NSKeyValueObservation?
 
     if !downloadVM.downloading && !InstallVM.shared.installing {
         lazy var urlSession = URLSession(configuration: .default, delegate: nil, delegateQueue: nil)
