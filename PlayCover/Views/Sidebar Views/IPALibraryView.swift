@@ -48,7 +48,11 @@ struct IPALibraryView: View {
                                 if !isList {
                                     LazyVGrid(columns: gridLayout, alignment: .center) {
                                         ForEach(storeVM.filteredApps, id: \.bundleID) { app in
-                                            NavigationLink(destination: DetailStoreAppView(app: app, downloadVM: DownloadVM.shared)) {
+                                            NavigationLink(
+                                                destination: DetailStoreAppView(
+                                                    app: app,
+                                                    downloadVM: DownloadVM.shared)
+                                            ) {
                                                 StoreAppView(selectedBackgroundColor: $selectedBackgroundColor,
                                                              selectedTextColor: $selectedTextColor,
                                                              selected: $selected,
@@ -64,7 +68,11 @@ struct IPALibraryView: View {
                                 } else {
                                     VStack {
                                         ForEach(storeVM.filteredApps, id: \.bundleID) { app in
-                                            NavigationLink(destination: DetailStoreAppView(app: app, downloadVM: DownloadVM.shared)) {
+                                            NavigationLink(
+                                                destination: DetailStoreAppView(
+                                                    app: app,
+                                                    downloadVM: DownloadVM.shared)
+                                            ) {
                                                 StoreAppView(selectedBackgroundColor: $selectedBackgroundColor,
                                                              selectedTextColor: $selectedTextColor,
                                                              selected: $selected,
